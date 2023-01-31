@@ -1,0 +1,6 @@
+".\Objects\main.obj",
+".\Objects\UartInit.obj",
+".\Objects\LCD1602.obj",
+".\Objects\voice.obj" 
+TO ".\Objects\lxz" 
+PRINT(".\Listings\lxz.m51") RAMSIZE(256) 

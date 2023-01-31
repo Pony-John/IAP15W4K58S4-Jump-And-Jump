@@ -1,0 +1,172 @@
+C51 COMPILER V9.56.0.0   LCD1602                                                           06/07/2018 23:33:13 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE LCD1602
+OBJECT MODULE PLACED IN .\Objects\LCD1602.obj
+COMPILER INVOKED BY: D:\软件\KEIL 5\C51\BIN\C51.EXE LCD1602.C OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listin
+                    -gs\LCD1602.lst) OBJECT(.\Objects\LCD1602.obj)
+
+line level    source
+
+   1          
+   2          #include "LCD1602.H"
+   3          /****************《51单片机轻松入门-基于STC15W4K系列》配套例程 *************
+   4           ★★★★★★★★★★★★★★★★★★★★★★★★
+   5           《51单片机轻松入门-基于STC15W4K系列》 一书已经由北航出版社正式出版发行。
+   6            作者亲手创作的与教材配套的51双核实验板(2个MCU)对程序下载、调试、仿真方便，不需要外部
+   7            仿真器与编程器，这种设计方式彻底解决了系统中多个最高优先级谁也不能让谁的中断竞争问题。
+   8            淘宝店地址：https://shop117387413.taobao.com
+   9            QQ群：STC51-STM32(3) ：515624099 或 STC51-STM32(2)：99794374。
+  10                  验证信息：STC15单片机
+  11            邮箱：xgliyouquan@126.com
+  12            ★★★★★★★★★★★★★★★★★★★★★★★★*/
+  13          
+  14          void delay2uS ()  // 22.1184MHz
+  15          {
+  16   1          unsigned char t=9;
+  17   1              while(--t);
+  18   1      }
+  19          
+  20          //      正常读写操作之前检测LCD控制器状态
+  21          //  读状态时序：RS=0，RW=1，E=1，判断忙完毕后释放总线
+  22          void WaitIdle()
+  23          {
+  24   1              unsigned char tmp;
+  25   1              RS=0;                     // 命令
+  26   1              RW=1;                     // 读取
+  27   1              DPORT=0xff;               // 为接收数据作准备
+  28   1              _nop_();          // 短暂延时
+  29   1              E=1;              // 使能LCD1602 
+  30   1              delay2uS();               // LCD1602在E为高电平区间输出数据到端口
+  31   1              for(;;)
+  32   1              {
+  33   2                      tmp=DPORT;         // 将数据端口上的值赋给tmp
+  34   2                      tmp&=0x80;         // 最高位为1时表示液晶模块正忙，不能对其进行操作
+  35   2                      if(     tmp==0)    // 其余6位表示内部当前显示地址，无实际用途。
+  36   2                              break;
+  37   2              }
+  38   1              E=0;                       // 释放总线
+  39   1      } 
+  40                  
+  41          // 向LCD1602液晶写入一字节数据，dat-待写入数据值 
+  42          // 写数据时序：RS=1，RW=0，D7——D0 = 数据，E=正脉冲，液晶在脉冲下降沿采样数据。
+  43          void LcdWriteDat(unsigned char dat)
+  44          {
+  45   1          WaitIdle();                 // 等待LCD1602空闲
+  46   1              RS=1;                           // 数据
+  47   1              RW=0;                           // 写
+  48   1              DPORT=dat;                      // 将待写数据送到数据端口
+  49   1              _nop_();            // 短暂延时
+  50   1              E=1;                            // 使能LCD1602
+  51   1              delay2uS();                     // LCD1602在E为高电平区间读取数据端口上的值
+  52   1              E=0;                        // 关闭LCD1602使能,释放总线    
+  53   1      }
+  54          
+C51 COMPILER V9.56.0.0   LCD1602                                                           06/07/2018 23:33:13 PAGE 2   
+
+  55          // 向LCD1602液晶写入一字节命令，cmd-待写入命令值 
+  56          // 写命令时序：RS=0，RW=0，D7——D0 = 数据，E=正脉冲，液晶在脉冲下降沿采样数据。
+  57          void LcdWriteCmd(unsigned char cmd)
+  58          {
+  59   1          WaitIdle();                 // 等待LCD1602空闲
+  60   1              RS=0;                           // 命令
+  61   1              RW=0;                           // 写
+  62   1              DPORT=cmd;                      // 将命令码输出在数据端口上
+  63   1              _nop_();            // 短暂延时
+  64   1              E=1;                            // 使能LCD1602
+  65   1              delay2uS();                     // LCD1602在E为高电平区间读取数据端口上的值
+  66   1              E=0;                            // 关闭LCD1602使能,释放总线
+  67   1      }
+  68          
+  69          // 清屏命令：清除显示内容，将1602内部RAM全部填入空白的ASCII码20H
+  70          //                       光标归位，将光标撤回到屏幕左上角的坐标原点
+  71          //           将1602内部显示地址设为0  
+  72          void ClrLcd()         
+  73          {       
+  74   1              LcdWriteCmd(0x01);
+  75   1      } 
+  76          
+  77          // 内部函数用于设置显示字符起始坐标
+  78          void LcdPos(unsigned char xPos,unsigned char yPos)       
+  79          {
+  80   1              unsigned char tmp;
+  81   1              xPos&=0x0f;                   // x位置范围是0~15
+  82   1              yPos&=0x01;                   // y位置范围是0~1
+  83   1              if(yPos==0)                   // 显示第一行
+  84   1                      tmp=xPos;                 // 第一行字符地址从 0x00 开始
+  85   1              else
+  86   1                      tmp=xPos+0x40;    // 第二行字符地址从 0x40 开始
+  87   1              tmp|=0x80;                        // 设置 RAM 地址
+  88   1              LcdWriteCmd(tmp);
+  89   1      }
+  90          
+  91          void SetCur(unsigned char Para)     // 设置光标
+  92          {
+  93   1              switch(Para)
+  94   1              {       
+  95   2                      case 0:
+  96   2                      {       
+  97   3                              LcdWriteCmd(0x08);      break;           // 关显示
+  98   3                      }
+  99   2                      case 1:
+ 100   2                      {       
+ 101   3                              LcdWriteCmd(0x0c);      break;       // 开显示但无光标
+ 102   3                      }
+ 103   2                      case 2:
+ 104   2                      {
+ 105   3                              LcdWriteCmd(0x0e);      break;       // 开显示有光标但不闪烁
+ 106   3                      }
+ 107   2                      case 3:
+ 108   2                      {
+ 109   3                              LcdWriteCmd(0x0f);      break;       // 开显示有光标且闪烁
+ 110   3                      }
+ 111   2                      default:
+ 112   2                              break;
+ 113   2              }
+ 114   1      }
+ 115          
+ 116          //在指定的行与列显示指定的字符，xpos:行，ypos:列，c:待显示字符
+C51 COMPILER V9.56.0.0   LCD1602                                                           06/07/2018 23:33:13 PAGE 3   
+
+ 117          void WriteChar(unsigned char xPos,unsigned char yPos,unsigned char Dat)
+ 118          {
+ 119   1              LcdPos(xPos,yPos);
+ 120   1              LcdWriteDat(Dat);
+ 121   1      }
+ 122          
+ 123          // 在液晶上显示字符串，xpos:行坐标，ypos:列坐标，str-字符串指针
+ 124          void WriteString(unsigned char xPos,unsigned char yPos,unsigned char *s)
+ 125          {       
+ 126   1              unsigned char i=0;
+ 127   1              LcdPos(xPos,yPos);                // 起始坐标
+ 128   1              while(s[i])
+ 129   1              {
+ 130   2                      LcdWriteDat(s[i]);
+ 131   2                      i++;
+ 132   2                      if (i>=16)  break;        // 超出16个字符外的数据丢弃
+ 133   2              }
+ 134   1      }
+ 135          
+ 136          // LCD 1602初始化
+ 137          void LCD1602_Init()         
+ 138          {
+ 139   1              LcdWriteCmd(0x38);           // 显示模式设置，设置16×2显示，5×7点阵，8位数据接口
+ 140   1              LcdWriteCmd(0x08);           // 显示关闭，不显示光标、光标不闪烁
+ 141   1              LcdWriteCmd(0x01);           // 显示清屏
+ 142   1              LcdWriteCmd(0x06);           // 显示光标移动位置
+ 143   1              LcdWriteCmd(0x0c);           // 显示开及光标设置
+ 144   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    208    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       4
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

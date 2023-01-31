@@ -1,0 +1,58 @@
+C51 COMPILER V9.56.0.0   ADC                                                               05/09/2018 12:04:05 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE ADC
+OBJECT MODULE PLACED IN .\Objects\ADC.obj
+COMPILER INVOKED BY: D:\Èí¼þ\KEIL 5\C51\BIN\C51.EXE ADC.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\A
+                    -DC.lst) OBJECT(.\Objects\ADC.obj)
+
+line level    source
+
+   1          #include "stc15.h"
+   2          
+   3          void delay(unsigned long mycnt);
+   4          /************************************************
+   5          void ADC(void)
+   6          {
+   7                  unsigned char adc_status; 
+   8                  unsigned long temp_buf;
+   9                  
+  10                  P1ASF=0x01;
+  11                  ADC_CONTR=0x80;
+  12                  delay(10);
+  13                  ADC_CONTR=0xe0;
+  14                  CLK_DIV|=0x20;
+  15                  while(1)
+  16                  {
+  17                          ADC_CONTR|=0x08;
+  18                          adc_status=0;
+  19                          while(adc_status==0)
+  20                          {
+  21                                  adc_status=ADC_CONTR&0x10;
+  22                          }
+  23                          ADC_CONTR=ADC_CONTR&0xe7;
+  24                          temp_buf=(ADC_RES<<8)+ADC_RESL;
+  25                          delay(10);
+  26                  }
+  27                  
+  28          }
+  29           ****************************************/
+  30          
+  31          void delay(unsigned long mycnt)
+  32          {
+  33   1              while(mycnt--);
+  34   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     22    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       4
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

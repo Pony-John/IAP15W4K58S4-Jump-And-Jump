@@ -1,0 +1,90 @@
+C51 COMPILER V9.56.0.0   VOICE                                                             06/07/2018 23:33:14 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE VOICE
+OBJECT MODULE PLACED IN .\Objects\voice.obj
+COMPILER INVOKED BY: D:\软件\KEIL 5\C51\BIN\C51.EXE voice.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings
+                    -\voice.lst) OBJECT(.\Objects\voice.obj)
+
+line level    source
+
+   1          
+   2          #include <stc15.h>        
+   3          #include <string.h> 
+   4           
+   5          void  voice(char  *text) 
+   6          {    
+   7   1      /****************需要发送的文本**********************************/ 
+   8   1               unsigned  char  headOfFrame[5];
+   9   1               unsigned  char  length;  
+  10   1               unsigned  char  ecc  = 0;              //定义校验字节
+  11   1               unsigned  int i=0; 
+  12   1               length = strlen(text);                 //需要发送文本的长度
+  13   1       
+  14   1      /****************串口的初始化************************************/ 
+  15   1      
+  16   1              /*com2串口的初始化
+  17   1              S2CON = 0x50;   
+  18   1              AUXR |= 0x04;   
+  19   1              T2L = 0xE0;             
+  20   1              T2H = 0xFE;             
+  21   1              AUXR |= 0x10;           
+  22   1      
+  23   1      /*      //com1
+  24   1              SCON = 0x50;        //8位数据,可变波特率
+  25   1          AUXR |= 0x40;        //定时器1时钟为Fosc,即1T
+  26   1          AUXR &= 0xFE;        //串口1选择定时器1为波特率发生器
+  27   1          TMOD &= 0x0F;        //设定定时器1为16位自动重装方式
+  28   1          TL1 = 0xE0;        //设定定时初值
+  29   1          TH1 = 0xFE;        //设定定时初值
+  30   1          ET1 = 0;           //禁止定时器1中断
+  31   1          TR1 = 1;           //启动定时器1
+  32   1      */
+  33   1      /*****************发送过程**************************************/           
+  34   1               headOfFrame[0] = 0xFD ;             //构造帧头FD
+  35   1               headOfFrame[1] = 0x00 ;             //构造数据区长度的高字节
+  36   1               headOfFrame[2] = length + 3;         //构造数据区长度的低字节
+  37   1               headOfFrame[3] = 0x01 ;             //构造命令字：合成播放命令
+  38   1      /*****************带背景音乐**************************************/           
+  39   1               headOfFrame[4] = 0x21 ;             //构造命令参数：编码格式为GBK
+  40   1      
+  41   1      /*****************不带背景音乐**************************************/           
+  42   1              //headOfFrame[4] = 0x01 ;             //构造命令参数：编码格式为GBK
+  43   1      
+  44   1               for(i = 0; i<5; i++)                   //依次发送构造好的5个帧头字节
+  45   1               {  
+  46   2                   ecc=ecc^(headOfFrame[i]);         //对发送的字节进行异或校验    
+  47   2                   S3BUF = headOfFrame[i]; 
+  48   2                   while (!(S3CON & 0x02)) {;}               //等待发送中断标志位置位
+  49   2                   S3CON &= 0xFD;                        //发送中断标志位清零
+  50   2               }
+  51   1      
+  52   1                  for(i = 0; i<length; i++)           //依次发送待合成的文本数据
+  53   1               {  
+  54   2                   ecc=ecc^(text[i]);                 //对发送的字节进行异或校验    
+C51 COMPILER V9.56.0.0   VOICE                                                             06/07/2018 23:33:14 PAGE 2   
+
+  55   2                   S3BUF = text[i]; 
+  56   2                   while (!(S3CON & 0x02)) {;} 
+  57   2                   S3CON &= 0xFD;                
+  58   2               }
+  59   1      
+  60   1                 S3BUF=ecc;                            //最后发送校验字节
+  61   1                 while (!(S3CON & 0x02)) {;} 
+  62   1                         S3CON &= 0xFD;   
+  63   1              
+  64   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    121    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      10
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

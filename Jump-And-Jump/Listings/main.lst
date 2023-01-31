@@ -1,0 +1,296 @@
+C51 COMPILER V9.56.0.0   MAIN                                                              06/07/2018 23:33:11 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\软件\KEIL 5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\
+                    -main.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <stc15.h>
+   2          #include <string.h>
+   3          #include <math.h>
+   4          #include "LCD1602.H"
+   5          
+   6          #define     MAIN_Fosc       11059200UL      //定义主时钟
+   7          
+   8          #define     PWM_DUTY        221184          //定义PWM的周期，数值为时钟周期数，假如使用11.0592MHZ的主频，P
+             -WM频率为20HZ。
+   9          
+  10          #define     PWM_HIGH_MIN    32              //限制PWM输出的最小占空比。用户请勿修改。
+  11          #define     PWM_HIGH_MAX    (PWM_DUTY-PWM_HIGH_MIN) //限制PWM输出的最大占空比。用户请勿修改。
+  12          
+  13          typedef     unsigned char   u8;
+  14          typedef     unsigned int    u16;
+  15          typedef     unsigned long   u32;
+  16          
+  17          sbit    P_PWM = P3^5;       //定义PWM输出引脚。
+  18          sbit    key = P3^2;
+  19          u16     pwm;                //定义PWM输出高电平的时间的变量。用户操作PWM的变量。
+  20          
+  21          u16     PWM_high,PWM_low;   //中间变量，用户请勿修改。
+  22          
+  23          void delay_ms(unsigned int  ms);
+  24          void delay(unsigned long mycnt);
+  25          
+  26          void LoadPWM(u16 i);
+  27          void PWM_Init(void);
+  28          
+  29          void UartInit(void);
+  30          void UartInit3(void);
+  31          
+  32          void UART_Send_Byte(unsigned char dat);
+  33          void UART_Send_Buff(const char* src);
+  34          
+  35          void  voice(char  *text);
+  36          
+  37          unsigned char Long_Str(long dat,unsigned char *str);
+  38          
+  39          void port_mode()            // 端口模式
+  40          {
+  41   1              P0M1=0x00; P0M0=0x00;
+  42   1              P1M1=0x00; P1M0=0x00;
+  43   1              P2M1=0x00; P2M0=0x00;
+  44   1              P3M1 &= ~(1 << 5);  P3M0 |=  (1 << 5); //P3.5 设置为推挽输出
+  45   1              P4M1=0x00; P4M0=0x00;
+  46   1              P5M1=0x00; P5M0=0x00;
+  47   1              P6M1=0x00; P6M0=0x00;
+  48   1              P7M1=0x00; P7M0=0x00; 
+  49   1      }
+  50          
+  51          void main()
+  52          {
+  53   1              /************舵机/AD的的变量************/
+C51 COMPILER V9.56.0.0   MAIN                                                              06/07/2018 23:33:11 PAGE 2   
+
+  54   1              char a[11];  
+  55   1              char a1[11];  
+  56   1              char a2[11];  
+  57   1              unsigned char adc_status; 
+  58   1          long temp_buf1=0;
+  59   1              long temp_buf2=0;
+  60   1              long T1=0;
+  61   1          long T2=0;
+  62   1          long time=0;
+  63   1              
+  64   1              /************语音函数的变量************/
+  65   1          unsigned  char  length;  
+  66   1              unsigned  char  ecc  = 0;          
+  67   1          unsigned  int i=0; 
+  68   1              unsigned char ta[11];
+  69   1                             
+  70   1              char text[] = {"\0"};
+  71   1              
+  72   1              /************LCD的变量************/
+  73   1              unsigned char xPos,yPos;                 // X坐标、Y坐标
+  74   1              unsigned char *s="Step=";
+  75   1              unsigned char DispBuf[9];            // 存放4个待发送ASCII码
+  76   1              unsigned long TestDat=0;     // 临时变量
+  77   1              
+  78   1              /************记步变量step************/
+  79   1          unsigned long step = 0;
+  80   1              
+  81   1              
+  82   1              port_mode();          // IO口工作模式设置
+  83   1              /************ LCD初始化 ***********/
+  84   1              delay_ms(100);                    // 等待LCD1602上电时内部复位
+  85   1              LCD1602_Init();
+  86   1              SetCur(CurFlash);     // 开光标显示、闪烁，NoCur——有显示无光标,NoDisp——无显示，     
+  87   1                                // CurNoFlash——有光标但不闪烁       ，CurFlash——有光标且闪烁
+  88   1              xPos=0;               // xPos表示水平右移字符数(0-15)
+  89   1              yPos=1;               // yPos表示垂直下移字符数(0-1)
+  90   1              WriteString(0,0,"JUMP-AND-JUMP");         // X坐标、Y坐标、字符串，屏幕左上角为坐标原点，水平：0-15，垂直：0-1
+  91   1              WriteString(xPos,yPos,s);         // X坐标、Y坐标、字符串，屏幕左上角为坐标原点 
+  92   1          xPos=5;                    
+  93   1              yPos=1; 
+  94   1              Long_Str(TestDat,DispBuf);                        // 同第4章8节"利用串口调试程序"
+  95   1              WriteString(xPos,yPos,DispBuf); 
+  96   1              
+  97   1              /************ PWM/串口初始化 ***********/
+  98   1              UartInit();     
+  99   1              UartInit3();    
+ 100   1              length = strlen(text); 
+ 101   1          P_PWM = 0;
+ 102   1              
+ 103   1          TR0 = 0;        //停止计数
+ 104   1          ET0 = 1;        //允许中断
+ 105   1          PT0 = 1;        //高优先级中断
+ 106   1          TMOD &= ~0x03;  //工作模式,0: 16位自动重装
+ 107   1          AUXR |=  0x80;  //1T
+ 108   1          TMOD &= ~0x04;  //定时
+ 109   1          INT_CLKO |=  0x01;  //输出时钟
+ 110   1      
+ 111   1          TH0 = 0;
+ 112   1          TL0 = 0;
+ 113   1          TR0 = 1;    //开始运行
+ 114   1      
+ 115   1          EA = 1;
+C51 COMPILER V9.56.0.0   MAIN                                                              06/07/2018 23:33:11 PAGE 3   
+
+ 116   1              pwm = PWM_DUTY / 25;
+ 117   1              LoadPWM(pwm);
+ 118   1              key = 1; 
+ 119   1      
+ 120   1      /************************************************/      
+ 121   1      
+ 122   1              while(1)
+ 123   1              {
+ 124   2                      if(!key)
+ 125   2                      {
+ 126   3                              delay(20);
+ 127   3                              if(!key)
+ 128   3                              {
+ 129   4                                      
+ 130   4                                      P1ASF=0x01;
+ 131   4                                      ADC_CONTR=0x80;              //打开AD电源
+ 132   4                                      delay(10);
+ 133   4                                      ADC_CONTR=0xe0;              //设置转换速度和通道1
+ 134   4                                      CLK_DIV|=0x20;
+ 135   4                                      ADC_CONTR|=0x08;
+ 136   4                                      adc_status=0;
+ 137   4                                      while(adc_status==0)
+ 138   4                                      {
+ 139   5                                              adc_status=ADC_CONTR&0x10;
+ 140   5                                      }
+ 141   4                                      ADC_CONTR=ADC_CONTR&0xe7;
+ 142   4                                      temp_buf1=(ADC_RES<<8)+ADC_RESL;
+ 143   4                                      delay(10);
+ 144   4                                      
+ 145   4                                      
+ 146   4                                      
+ 147   4                                      P1ASF=0x02;
+ 148   4                                      ADC_CONTR=0x80;                         //打开AD电源
+ 149   4                                      delay(10);
+ 150   4                                      ADC_CONTR=0xe1;                         //设置转换速度和通道2
+ 151   4                                      CLK_DIV|=0x20;
+ 152   4                                      ADC_CONTR|=0x08;
+ 153   4                                      adc_status=0;
+ 154   4                                      while(adc_status==0)
+ 155   4                                      {
+ 156   5                                              adc_status=ADC_CONTR&0x10;
+ 157   5                                      }
+ 158   4                                      ADC_CONTR=ADC_CONTR&0xe7;
+ 159   4                                      temp_buf2=(ADC_RES<<8)+ADC_RESL;
+ 160   4                                      delay(10);
+ 161   4      
+ 162   4                                      time =temp_buf1-temp_buf2;
+ 163   4                                      if(time>0)
+ 164   4                                      {
+ 165   5                                              time = 1.8*time;
+ 166   5                                      }
+ 167   4                                      if(time<0)
+ 168   4                                      {
+ 169   5                                              time = -time;
+ 170   5                                              time = 2.2*time;
+ 171   5                                      }
+ 172   4                                      Long_Str(time,a);
+ 173   4                                      Long_Str(temp_buf1,a1);
+ 174   4                                      Long_Str(temp_buf2,a2);
+ 175   4                                      
+ 176   4                                      UART_Send_Buff(a1);
+ 177   4                                      UART_Send_Buff(".");
+C51 COMPILER V9.56.0.0   MAIN                                                              06/07/2018 23:33:11 PAGE 4   
+
+ 178   4                                      UART_Send_Buff(a2);
+ 179   4                                      UART_Send_Buff(".");
+ 180   4                                      UART_Send_Buff(a);
+ 181   4                                      UART_Send_Buff(".");
+ 182   4                                      
+ 183   4                                      pwm = PWM_DUTY / 35;    
+ 184   4                                      LoadPWM(pwm);                   //舵机按下
+ 185   4                                      delay_ms(time);
+ 186   4                                      delay_ms(5);
+ 187   4                                      pwm = PWM_DUTY / 25;    
+ 188   4                                      LoadPWM(pwm);               //舵机抬起
+ 189   4                                      delay(20);
+ 190   4                                      
+ 191   4                                      xPos=5;                
+ 192   4                                      yPos=1; 
+ 193   4                                      step++;
+ 194   4                                      TestDat = step;
+ 195   4                                      Long_Str(TestDat,DispBuf);      
+ 196   4                                      WriteString(xPos,yPos,DispBuf); 
+ 197   4                                      
+ 198   4                                      Long_Str(step,ta);
+ 199   4                                      for(i=0;i<11;i++)
+ 200   4                                      {
+ 201   5                                              text[i]=ta[i];
+ 202   5                                      }
+ 203   4                                      voice(text);
+ 204   4      
+ 205   4                                      while(!key);
+ 206   4                              }
+ 207   3                      }
+ 208   2              }
+ 209   1      }
+ 210          
+ 211          void delay(unsigned long mycnt)
+ 212          {
+ 213   1              while(mycnt--);
+ 214   1      }
+ 215          
+ 216          //========================================================================
+ 217          // 函数: void  delay_ms(unsigned char ms)
+ 218          // 描述: 延时函数。
+ 219          // 参数: ms,要延时的ms数, 这里只支持1~255ms. 自动适应主时钟.
+ 220          // 返回: none.
+ 221          // 版本: VER1.0
+ 222          // 日期: 2013-4-1
+ 223          // 备注: 
+ 224          //========================================================================
+ 225          
+ 226          void delay_ms(unsigned int  ms)     
+ 227          {
+ 228   1              unsigned int i;  
+ 229   1          do{  
+ 230   2              i=MAIN_Fosc/9600;  
+ 231   2              while(--i);     //96T per loop  
+ 232   2          }while(--ms);       //--ms  ms=ms-1  
+ 233   1      }  
+ 234          /**************** 计算PWM重装值函数 *******************/
+ 235          void    LoadPWM(u16 i)
+ 236          {
+ 237   1          u16 j;
+ 238   1      
+ 239   1          if(i > PWM_HIGH_MAX)        i = PWM_HIGH_MAX;   //如果写入大于最大占空比数据，则强制为最大占空比。
+C51 COMPILER V9.56.0.0   MAIN                                                              06/07/2018 23:33:11 PAGE 5   
+
+ 240   1          if(i < PWM_HIGH_MIN)        i = PWM_HIGH_MIN;   //如果写入小于最小占空比数据，则强制为最小占空比。
+ 241   1          j = 65536UL - PWM_DUTY + i; //计算PWM低电平时间
+ 242   1          i = 65536UL - i;            //计算PWM高电平时间
+ 243   1          EA = 0;
+ 244   1          PWM_high = i;   //装载PWM高电平时间
+ 245   1          PWM_low  = j;   //装载PWM低电平时间
+ 246   1          EA = 1;
+ 247   1      }
+ 248          
+ 249          /********************* Timer0中断函数************************/
+ 250          void timer0_int (void) interrupt 1
+ 251          {
+ 252   1          if(P_PWM)
+ 253   1          {
+ 254   2              TH0 = (u8)(PWM_low >> 8);   //如果是输出高电平，则装载低电平时间。
+ 255   2              TL0 = (u8)PWM_low;
+ 256   2          }
+ 257   1          else
+ 258   1          {
+ 259   2              TH0 = (u8)(PWM_high >> 8);  //如果是输出低电平，则装载高电平时间。
+ 260   2              TL0 = (u8)PWM_high;
+ 261   2          }
+ 262   1      }
+ 263          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    951    ----
+   CONSTANT SIZE    =     24    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6      96
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

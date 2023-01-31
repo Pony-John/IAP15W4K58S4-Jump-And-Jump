@@ -1,0 +1,95 @@
+C51 COMPILER V9.56.0.0   UARTINIT                                                          06/07/2018 23:33:12 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE UARTINIT
+OBJECT MODULE PLACED IN .\Objects\UartInit.obj
+COMPILER INVOKED BY: D:\软件\KEIL 5\C51\BIN\C51.EXE UartInit.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listi
+                    -ngs\UartInit.lst) OBJECT(.\Objects\UartInit.obj)
+
+line level    source
+
+   1          #include <stc15.h>
+   2          #include <string.h>
+   3          
+   4          
+   5          void UartInit()         //9600bps@11.0592MHz
+   6          {
+   7   1              SCON = 0x50;            //8???,?????
+   8   1              AUXR |= 0x40;           //???1???Fosc,?1T
+   9   1              AUXR &= 0xFE;           //??1?????1???????
+  10   1              TMOD &= 0x0F;           //?????1?16???????
+  11   1              TL1 = 0xE0;             //??????
+  12   1              TH1 = 0xFE;             //??????
+  13   1              ET1 = 0;                //?????1??
+  14   1              TR1 = 1;                //?????1
+  15   1      }
+  16          
+  17          void UartInit3(void)            //9600bps@11.0592MHz
+  18          {
+  19   1              S3CON = 0x10;           //8位数据,可变波特率
+  20   1              S3CON &= 0xBF;          //串口3选择定时器2为波特率发生器
+  21   1              AUXR |= 0x04;           //定时器2时钟为Fosc,即1T
+  22   1              T2L = 0xE0;             //设定定时初值
+  23   1              T2H = 0xFE;             //设定定时初值
+  24   1              AUXR |= 0x10;           //启动定时器2
+  25   1      }
+  26          void UART_Send_Byte(unsigned char dat)
+  27          {
+  28   1              //ES=0;          // ??????????,??????
+  29   1              SBUF = dat;
+  30   1              while(!TI);         
+  31   1              TI=0;    //??????,??????????,??????????????
+  32   1              //ES=1;
+  33   1      }       
+  34          
+  35          void UART_Send_Buff(const char* src)
+  36          {
+  37   1              unsigned char len = strlen(src);
+  38   1              while(len)
+  39   1              {
+  40   2                      UART_Send_Byte(*src);
+  41   2                      src++;
+  42   2                      len--;
+  43   2              }
+  44   1      }
+  45          
+  46          unsigned char Long_Str(long dat,unsigned char *str) // ??????????,?????????????
+  47          {
+  48   1              signed char i=0;
+  49   1              unsigned char len = 0;
+  50   1              unsigned char buf[11];     // ??????4294967295,?ASCII????10+1=11?? 
+  51   1              if (dat < 0)               // ?????,??????,?????
+  52   1              {
+  53   2                      dat = -dat;
+  54   2                      *str++ = '-';
+C51 COMPILER V9.56.0.0   UARTINIT                                                          06/07/2018 23:33:12 PAGE 2   
+
+  55   2                      len++;
+  56   2              }
+  57   1              do 
+  58   1              {                               // ????????????
+  59   2                      buf[i++] = dat % 10+0x30;       // C??????????0??
+  60   2                      dat /= 10;
+  61   2              } while (dat > 0);
+  62   1          len += i;                 // i?????????????
+  63   1          while (i-- > 0)           // ????????????
+  64   1          {
+  65   2              *str++ = buf[i] ;
+  66   2          }     
+  67   1              *str = 0;                 // ????????????KEIL????????????
+  68   1              return len;               // ???????
+  69   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    276    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      23
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
